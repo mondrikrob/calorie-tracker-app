@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calorie Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🍽️ Meal Logger</h1>
+        
+        <form id="meal-form">
+            <div class="form-group">
+                <label for="meal-type">Meal Type:</label>
+                <select id="meal-type" required>
+                    <option value="">Select meal type</option>
+                    <option value="breakfast">🌅 Breakfast</option>
+                    <option value="lunch">🌞 Lunch</option>
+                    <option value="dinner">🌙 Dinner</option>
+                    <option value="snack">🍎 Snack</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="meal-date">Date:</label>
+                <input type="date" id="meal-date" required>
+            </div>
+
+            <div class="form-group">
+                <label for="meal-time">Time:</label>
+                <input type="time" id="meal-time" required>
+            </div>
+
+            <div class="form-group">
+                <label for="photo">Photo (optional):</label>
+                <input type="file" id="photo" accept="image/*">
+                <canvas id="canvas" style="display: none;"></canvas>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description:</label>
+                <textarea id="description" placeholder="Describe what you ate (e.g., grilled chicken breast with rice and vegetables)" required></textarea>
+            </div>
+
+            <button type="submit" id="submit-btn">Log Meal</button>
+        </form>
+
+        <div id="status" class="status"></div>
+        
+        <div class="recent-meals">
+            <h3>Recent Meals</h3>
+            <div id="recent-list"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="script.js"></script>
+</body>
+</html>
