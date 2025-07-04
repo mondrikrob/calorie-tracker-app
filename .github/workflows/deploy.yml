@@ -9,7 +9,6 @@ permissions:
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment
 concurrency:
   group: "pages"
   cancel-in-progress: false
@@ -27,9 +26,11 @@ jobs:
       
     - name: Replace API keys with secrets
       run: |
+        echo "Replacing placeholders with secrets..."
         sed -i "s/GOOGLE_VISION_API_KEY_PLACEHOLDER/${{ secrets.GOOGLE_VISION_API_KEY }}/g" index.html
-        sed -i "s|SUPABASE_URL_PLACEHOLDER|${{ secrets.SUPABASE_URL }}|g" index.html
+        sed -i "s|SUPABASE_URL_PLACEHOLDER|${{ secrets.SUPABASE_URL }}|g" index.html  
         sed -i "s/SUPABASE_ANON_KEY_PLACEHOLDER/${{ secrets.SUPABASE_ANON_KEY }}/g" index.html
+        echo "Replacement complete!"
         
     - name: Setup Pages
       uses: actions/configure-pages@v4
