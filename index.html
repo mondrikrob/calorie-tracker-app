@@ -730,111 +730,76 @@
             });
         }
 
-        // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 DOM loaded, initializing app...');
+        // Simple, bulletproof initialization
+        function initializeApp() {
+            console.log('🚀 Starting app initialization...');
             
-            // Wait for Supabase library to load, then try auto-configuration
-            function tryInitialize() {
-                console.log('🔍 Attempting initialization...');
-                
-                // Check if Supabase library is loaded
-                if (!window.supabase) {
-                    console.log('⏳ Supabase library not yet loaded');
-                    return false;
-                }
-                
-                let visionConfigured = false;
-                let supabaseConfigured = false;
-                
-                console.log('🔍 Checking API keys...');
-                console.log('Google Vision key replaced?', GOOGLE_VISION_API_KEY !== 'GOOGLE_VISION_API_KEY_PLACEHOLDER');
-                console.log('Supabase URL replaced?', SUPABASE_URL !== 'SUPABASE_URL_PLACEHOLDER');
-                console.log('Supabase key replaced?', SUPABASE_ANON_KEY !== 'SUPABASE_ANON_KEY_PLACEHOLDER');
-                
-                // Configure Google Vision if available
-                if (GOOGLE_VISION_API_KEY !== 'GOOGLE_VISION_API_KEY_PLACEHOLDER') {
-                    googleVisionKey = GOOGLE_VISION_API_KEY;
-                    visionConfigured = true;
-                    console.log('✅ Google Vision configured');
-                }
-                
-                // Configure Supabase if available
-                if (SUPABASE_URL !== 'SUPABASE_URL_PLACEHOLDER' && 
-                    SUPABASE_ANON_KEY !== 'SUPABASE_ANON_KEY_PLACEHOLDER') {
-                    try {
-                        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                        supabaseConfigured = true;
-                        console.log('✅ Supabase configured');
-                    } catch (error) {
-                        console.error('❌ Supabase initialization error:', error);
-                        showStatus('Error initializing Supabase: ' + error.message, true);
-                        return false;
+            // Check if everything is ready
+            if (!window.supabase) {
+                console.log('❌ Supabase library not loaded');
+                return false;
+            }
+            
+            const hasGoogleVision = GOOGLE_VISION_API_KEY !== 'GOOGLE_VISION_API_KEY_PLACEHOLDER';
+            const hasSupabaseUrl = SUPABASE_URL !== 'SUPABASE_URL_PLACEHOLDER';
+            const hasSupabaseKey = SUPABASE_ANON_KEY !== 'SUPABASE_ANON_KEY_PLACEHOLDER';
+            
+            console.log('📋 Availability check:', {
+                googleVision: hasGoogleVision,
+                supabaseUrl: hasSupabaseUrl,
+                supabaseKey: hasSupabaseKey
+            });
+            
+            // If we have Supabase credentials, initialize the app
+            if (hasSupabaseUrl && hasSupabaseKey) {
+                try {
+                    // Configure services
+                    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    if (hasGoogleVision) {
+                        googleVisionKey = GOOGLE_VISION_API_KEY;
                     }
-                }
-                
-                // If Supabase is configured, show the app
-                if (supabaseConfigured) {
-                    console.log('🎉 Auto-configuration successful!');
                     
-                    // Show the app interface
+                    console.log('✅ Services configured successfully');
+                    
+                    // Show the app
                     document.getElementById('auto-config-notice').style.display = 'block';
                     document.getElementById('config-section').style.display = 'none';
                     document.getElementById('meal-form').style.display = 'block';
                     document.getElementById('recent-meals').style.display = 'block';
                     
-                    // Initialize the form
+                    // Initialize
                     setCurrentDateTime();
                     loadRecentMeals();
                     
                     // Show status
-                    const visionStatus = visionConfigured ? 'Vision AI enabled!' : 'Vision AI not configured (photos will be stored with description only).';
+                    const visionStatus = hasGoogleVision ? 'Vision AI enabled!' : 'Vision AI not configured.';
                     showStatus('🚀 App ready! ' + visionStatus);
                     
+                    console.log('🎉 App initialization complete!');
                     return true;
-                } else {
-                    console.log('⚠️ No Supabase configuration detected');
+                    
+                } catch (error) {
+                    console.error('❌ Initialization error:', error);
+                    showStatus('Error initializing app: ' + error.message, true);
                     return false;
                 }
-            }
-            
-            // Try initialization immediately if Supabase is loaded
-            if (window.supabase) {
-                console.log('✅ Supabase library already loaded');
-                const success = tryInitialize();
-                if (!success) {
-                    console.log('⚙️ Falling back to manual configuration');
-                    loadConfig();
-                }
             } else {
-                // Wait for Supabase library to load
-                console.log('⏳ Waiting for Supabase library...');
-                
-                // Try after 500ms
-                setTimeout(() => {
-                    if (window.supabase) {
-                        const success = tryInitialize();
-                        if (!success) {
-                            loadConfig();
-                        }
-                    } else {
-                        console.log('⏳ Still waiting for Supabase...');
-                        
-                        // Final attempt after 2 seconds
-                        setTimeout(() => {
-                            if (window.supabase) {
-                                const success = tryInitialize();
-                                if (!success) {
-                                    loadConfig();
-                                }
-                            } else {
-                                console.error('❌ Supabase library failed to load');
-                                showStatus('Error: Supabase library failed to load. Please refresh the page.', true);
-                                loadConfig(); // Fallback to manual config
-                            }
-                        }, 2000);
-                    }
-                }, 500);
+                console.log('⚠️ Missing Supabase credentials, showing manual config');
+                return false;
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('📄 DOM loaded');
+            
+            // Try immediate initialization
+            const success = initializeApp();
+            
+            if (!success) {
+                // Fallback to manual configuration
+                console.log('🔧 Falling back to manual configuration');
+                loadConfig();
             }
         });
     </script>
