@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calorie Tracker</title>
+    <title>AI Calorie Tracker</title>
     <style>
         * {
             margin: 0;
@@ -12,7 +12,7 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segui UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background-color: #f5f5f5;
             color: #333;
             line-height: 1.6;
@@ -224,6 +224,20 @@
             margin-bottom: 8px;
         }
 
+        .auto-config-notice {
+            background-color: #e6fffa;
+            border: 2px solid #38b2ac;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #234e52;
+        }
+
+        .auto-config-notice h3 {
+            color: #234e52;
+            margin-bottom: 8px;
+        }
+
         @media (max-width: 600px) {
             .container {
                 margin: 10px;
@@ -234,9 +248,15 @@
 </head>
 <body>
     <div class="container">
-        <h1>🍽️ AI Meal Logger</h1>
+        <h1>🍽️ AI Calorie Tracker</h1>
         
-        <!-- Configuration Section -->
+        <!-- Auto-config notice (shown when keys are injected) -->
+        <div class="auto-config-notice" id="auto-config-notice" style="display: none;">
+            <h3>🔄 Auto-configured!</h3>
+            <p>Your API keys have been securely injected by GitHub Actions. Ready to log meals!</p>
+        </div>
+        
+        <!-- Manual Configuration Section (fallback) -->
         <div class="config-section" id="config-section">
             <h3>⚙️ Setup Required</h3>
             <p>Configure your Supabase and Google Vision API credentials.</p>
@@ -302,6 +322,11 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
+        // API Key placeholders - will be replaced by GitHub Actions
+        const GOOGLE_VISION_API_KEY = 'GOOGLE_VISION_API_KEY_PLACEHOLDER';
+        const SUPABASE_URL = 'SUPABASE_URL_PLACEHOLDER';
+        const SUPABASE_ANON_KEY = 'SUPABASE_ANON_KEY_PLACEHOLDER';
+        
         // Global variables
         let supabase = null;
         let googleVisionKey = null;
@@ -316,11 +341,49 @@
         const recentMealsDiv = document.getElementById('recent-meals');
         const configSection = document.getElementById('config-section');
         const configInputs = document.getElementById('config-inputs');
+        const autoConfigNotice = document.getElementById('auto-config-notice');
         const photoPreview = document.getElementById('photo-preview');
         const analysisPreview = document.getElementById('analysis-preview');
         const visionResults = document.getElementById('vision-results');
 
-        // Configuration management
+        // Check if we have auto-injected keys from GitHub Actions
+        function initializeServices() {
+            let autoConfigured = false;
+            
+            // Check if Google Vision key was injected
+            if (GOOGLE_VISION_API_KEY !== 'GOOGLE_VISION_API_KEY_PLACEHOLDER') {
+                googleVisionKey = GOOGLE_VISION_API_KEY;
+                autoConfigured = true;
+            }
+            
+            // Check if Supabase keys were injected
+            if (SUPABASE_URL !== 'SUPABASE_URL_PLACEHOLDER' && 
+                SUPABASE_ANON_KEY !== 'SUPABASE_ANON_KEY_PLACEHOLDER') {
+                try {
+                    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    autoConfigured = true;
+                } catch (error) {
+                    console.error('Error initializing Supabase:', error);
+                    showStatus('Error initializing Supabase: ' + error.message, true);
+                }
+            }
+            
+            // If auto-configured, show the app
+            if (autoConfigured && supabase) {
+                autoConfigNotice.style.display = 'block';
+                configSection.style.display = 'none';
+                form.style.display = 'block';
+                recentMealsDiv.style.display = 'block';
+                setCurrentDateTime();
+                loadRecentMeals();
+                
+                showStatus('🚀 App ready! ' + (googleVisionKey ? 'Vision AI enabled!' : 'Vision AI not configured.'));
+            }
+            
+            return autoConfigured;
+        }
+
+        // Manual configuration management (fallback)
         function toggleConfig() {
             configInputs.classList.toggle('show');
         }
@@ -355,7 +418,7 @@
                 form.style.display = 'block';
                 recentMealsDiv.style.display = 'block';
                 
-                showStatus('Configuration saved successfully! 🎉' + (visionKey ? ' Vision API enabled!' : ''));
+                showStatus('Configuration saved successfully! 🎉' + (visionKey ? ' Vision AI enabled!' : ''));
                 
                 // Set current date and time
                 setCurrentDateTime();
@@ -411,6 +474,10 @@
                     // Analyze with Google Vision if available
                     if (googleVisionKey) {
                         analyzePhotoWithVision(e.target.result);
+                    } else {
+                        // Show message that Vision is not configured
+                        visionResults.innerHTML = '<em>Google Vision API not configured. Photo will be stored with description only.</em>';
+                        analysisPreview.style.display = 'block';
                     }
                 };
                 reader.readAsDataURL(file);
@@ -441,10 +508,17 @@
                     })
                 });
                 
+                if (!response.ok) {
+                    throw new Error(`Vision API error: ${response.status} ${response.statusText}`);
+                }
+                
                 const result = await response.json();
                 
                 if (result.responses && result.responses[0]) {
                     const annotations = result.responses[0];
+                    if (annotations.error) {
+                        throw new Error(`Vision API error: ${annotations.error.message}`);
+                    }
                     displayVisionResults(annotations);
                     showStatus('Photo analyzed successfully! 📸');
                 } else {
@@ -454,6 +528,9 @@
             } catch (error) {
                 console.error('Vision API error:', error);
                 showStatus('Error analyzing photo: ' + error.message, true);
+                // Show fallback message
+                visionResults.innerHTML = '<em>Error analyzing photo. Description will be used instead.</em>';
+                analysisPreview.style.display = 'block';
             }
         }
 
@@ -461,7 +538,7 @@
         function displayVisionResults(annotations) {
             let html = '';
             
-            if (annotations.labelAnnotations) {
+            if (annotations.labelAnnotations && annotations.labelAnnotations.length > 0) {
                 html += '<strong>Detected items:</strong><br>';
                 const labels = annotations.labelAnnotations
                     .filter(label => label.score > 0.5)
@@ -470,7 +547,7 @@
                 html += labels + '<br><br>';
             }
             
-            if (annotations.localizedObjectAnnotations) {
+            if (annotations.localizedObjectAnnotations && annotations.localizedObjectAnnotations.length > 0) {
                 html += '<strong>Objects found:</strong><br>';
                 const objects = annotations.localizedObjectAnnotations
                     .filter(obj => obj.score > 0.5)
@@ -479,53 +556,12 @@
                 html += objects;
             }
             
+            if (!html) {
+                html = '<em>No clear food items detected. Description will be used for analysis.</em>';
+            }
+            
             visionResults.innerHTML = html;
             analysisPreview.style.display = 'block';
-        }
-
-        // Compress image function
-        function compressImage(file, maxWidth = 800, quality = 0.8) {
-            return new Promise((resolve) => {
-                const ctx = canvas.getContext('2d');
-                const img = new Image();
-                
-                img.onload = () => {
-                    const ratio = Math.min(maxWidth / img.width, maxWidth / img.height);
-                    const newWidth = img.width * ratio;
-                    const newHeight = img.height * ratio;
-                    
-                    canvas.width = newWidth;
-                    canvas.height = newHeight;
-                    
-                    ctx.drawImage(img, 0, 0, newWidth, newHeight);
-                    canvas.toBlob(resolve, 'image/jpeg', quality);
-                };
-                
-                img.src = URL.createObjectURL(file);
-            });
-        }
-
-        // Upload photo to Supabase Storage
-        async function uploadPhoto(file) {
-            try {
-                const compressedFile = await compressImage(file);
-                const fileName = `meal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}.jpg`;
-                
-                const { data, error } = await supabase.storage
-                    .from('meal-photos')
-                    .upload(fileName, compressedFile);
-                
-                if (error) throw error;
-                
-                const { data: urlData } = supabase.storage
-                    .from('meal-photos')
-                    .getPublicUrl(fileName);
-                
-                return urlData.publicUrl;
-            } catch (error) {
-                console.error('Photo upload error:', error);
-                throw error;
-            }
         }
 
         // Show status message
@@ -571,10 +607,14 @@
                     
                     let tagsHtml = '';
                     if (meal.vision_labels) {
-                        const labels = JSON.parse(meal.vision_labels);
-                        tagsHtml = '<div class="vision-tags">' + 
-                            labels.map(label => `<span class="vision-tag">${label}</span>`).join('') + 
-                            '</div>';
+                        try {
+                            const labels = JSON.parse(meal.vision_labels);
+                            tagsHtml = '<div class="vision-tags">' + 
+                                labels.slice(0, 5).map(label => `<span class="vision-tag">${label}</span>`).join('') + 
+                                '</div>';
+                        } catch (e) {
+                            // Handle invalid JSON gracefully
+                        }
                     }
                     
                     mealDiv.innerHTML = `
@@ -606,19 +646,24 @@
                 submitBtn.textContent = 'Logging...';
                 
                 try {
-                    let photoUrl = null;
                     let visionLabels = null;
                     
                     // Extract vision labels if photo was analyzed
-                    if (analysisPreview.style.display === 'block') {
+                    if (analysisPreview.style.display === 'block' && visionResults.innerHTML) {
                         const labelText = visionResults.innerHTML;
                         if (labelText.includes('Detected items:')) {
-                            const labels = labelText.split('Detected items:</strong><br>')[1]
-                                .split('<br>')[0]
-                                .split(', ')
-                                .map(item => item.split(' (')[0])
-                                .filter(item => item.length > 0);
-                            visionLabels = JSON.stringify(labels);
+                            try {
+                                const labels = labelText.split('Detected items:</strong><br>')[1]
+                                    .split('<br>')[0]
+                                    .split(', ')
+                                    .map(item => item.split(' (')[0])
+                                    .filter(item => item.length > 0 && item.trim() !== '');
+                                if (labels.length > 0) {
+                                    visionLabels = JSON.stringify(labels);
+                                }
+                            } catch (e) {
+                                console.warn('Could not parse vision labels:', e);
+                            }
                         }
                     }
                     
@@ -658,7 +703,13 @@
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
-            loadConfig();
+            // Try auto-configuration first
+            const autoConfigured = initializeServices();
+            
+            // If not auto-configured, try loading from localStorage
+            if (!autoConfigured) {
+                loadConfig();
+            }
         });
     </script>
 </body>
