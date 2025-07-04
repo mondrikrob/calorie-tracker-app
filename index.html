@@ -349,11 +349,14 @@
         // Check if we have auto-injected keys from GitHub Actions
         function initializeServices() {
             let autoConfigured = false;
+            let supabaseConfigured = false;
+            let visionConfigured = false;
             
             // Check if Google Vision key was injected
             if (GOOGLE_VISION_API_KEY !== 'GOOGLE_VISION_API_KEY_PLACEHOLDER') {
                 googleVisionKey = GOOGLE_VISION_API_KEY;
-                autoConfigured = true;
+                visionConfigured = true;
+                console.log('✅ Google Vision API configured');
             }
             
             // Check if Supabase keys were injected
@@ -361,23 +364,36 @@
                 SUPABASE_ANON_KEY !== 'SUPABASE_ANON_KEY_PLACEHOLDER') {
                 try {
                     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                    autoConfigured = true;
+                    supabaseConfigured = true;
+                    console.log('✅ Supabase configured successfully');
                 } catch (error) {
-                    console.error('Error initializing Supabase:', error);
+                    console.error('❌ Error initializing Supabase:', error);
                     showStatus('Error initializing Supabase: ' + error.message, true);
+                    return false;
                 }
             }
             
-            // If auto-configured, show the app
-            if (autoConfigured && supabase) {
+            // If at least Supabase is configured, show the app
+            if (supabaseConfigured) {
+                autoConfigured = true;
+                
+                // Show auto-config notice
                 autoConfigNotice.style.display = 'block';
                 configSection.style.display = 'none';
                 form.style.display = 'block';
                 recentMealsDiv.style.display = 'block';
+                
+                // Initialize the form
                 setCurrentDateTime();
                 loadRecentMeals();
                 
-                showStatus('🚀 App ready! ' + (googleVisionKey ? 'Vision AI enabled!' : 'Vision AI not configured.'));
+                // Show status with what's configured
+                const visionStatus = visionConfigured ? 'Vision AI enabled!' : 'Vision AI not configured (photos will be stored with description only).';
+                showStatus('🚀 App ready! ' + visionStatus);
+                
+                console.log('🎉 App auto-configured successfully!');
+            } else {
+                console.log('⚠️ No auto-configuration detected, falling back to manual setup');
             }
             
             return autoConfigured;
